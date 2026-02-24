@@ -8,7 +8,8 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
-import "../bar" as Bar
+import qs.modules.bar as Bar
+// import "../bar" as Bar
 
 Item { // Bar content region
     id: root

@@ -7,8 +7,8 @@ import qs.modules.common.functions
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Mpris
-
-import "../bar" as Bar
+import qs.modules.bar as Bar
+// import "../bar" as Bar
 
 MouseArea {
     id: root
