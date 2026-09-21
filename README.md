@@ -70,4 +70,9 @@ video playback is disabled.
 For bug reports, include reproduction steps, expected and actual behavior, and
 a screenshot or relevant log excerpt.
 
+## License
+
+qs-ii is independently maintained by yumesha and licensed under the
+[GNU General Public License v3](LICENSE).
+
 [Repository](https://github.com/yumesha/qs-ii) · [Report an issue](https://github.com/yumesha/qs-ii/issues)
