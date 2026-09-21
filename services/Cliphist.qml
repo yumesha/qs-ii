@@ -39,8 +39,34 @@ Singleton {
         });
     }
 
+    function entryImageMimeType(entry) {
+        const match = entry.match(/^\d+\t\[\[.*binary data.*\s(png|jpe?g|webp|gif|bmp|tiff?)\s+\d+x\d+.*\]\]$/i)
+        if (!match)
+            return ""
+
+        const subtype = match[1].toLowerCase()
+        if (subtype === "jpg")
+            return "image/jpeg"
+        if (subtype === "tif")
+            return "image/tiff"
+        return `image/${subtype}`
+    }
+
     function entryIsImage(entry) {
-        return !!(/^\d+\t\[\[.*binary data.*\d+x\d+.*\]\]$/.test(entry))
+        return root.entryImageMimeType(entry) !== ""
+    }
+
+    function classicCopyCommand(entry) {
+        const mimeType = root.entryImageMimeType(entry)
+        const typeOption = mimeType ? ` --type '${mimeType}'` : ""
+        return `printf '%s' '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy${typeOption}`
+    }
+
+    function stashCopyCommand(entry) {
+        const entryNumber = entry.split("\t")[0]
+        const mimeType = root.entryImageMimeType(entry)
+        const typeOption = mimeType ? ` --type '${mimeType}'` : ""
+        return `${root.cliphistBinary} decode ${entryNumber} | wl-copy${typeOption}`
     }
 
     function refresh() {
@@ -50,20 +76,16 @@ Singleton {
 
     function copy(entry) {
         if (root.cliphistBinary.includes("cliphist")) // Classic cliphist
-            Quickshell.execDetached(["bash", "-c", `printf '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy`]);
-        else { // Stash
-            const entryNumber = entry.split("\t")[0];
-            Quickshell.execDetached(["bash", "-c", `${root.cliphistBinary} decode ${entryNumber} | wl-copy`]);
-        }
+            Quickshell.execDetached(["bash", "-c", root.classicCopyCommand(entry)]);
+        else // Stash
+            Quickshell.execDetached(["bash", "-c", root.stashCopyCommand(entry)]);
     }
 
     function paste(entry) {
         if (root.cliphistBinary.includes("cliphist")) // Classic cliphist
-            Quickshell.execDetached(["bash", "-c", `printf '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy && wl-paste`]);
-        else { // Stash
-            const entryNumber = entry.split("\t")[0];
-            Quickshell.execDetached(["bash", "-c", `${root.cliphistBinary} decode ${entryNumber} | wl-copy; ${root.pressPasteCommand}`]);
-        }
+            Quickshell.execDetached(["bash", "-c", `${root.classicCopyCommand(entry)} && wl-paste`]);
+        else // Stash
+            Quickshell.execDetached(["bash", "-c", `${root.stashCopyCommand(entry)}; ${root.pressPasteCommand}`]);
     }
 
     function superpaste(count, isImage = false) {
@@ -72,7 +94,7 @@ Singleton {
             if (!isImage) return true;
             return entryIsImage(entry);
         }).slice(0, count)
-        const pasteCommands = [...targetEntries].reverse().map(entry => `printf '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy && sleep ${root.pasteDelay} && ${root.pressPasteCommand}`)
+        const pasteCommands = [...targetEntries].reverse().map(entry => `${root.classicCopyCommand(entry)} && sleep ${root.pasteDelay} && ${root.pressPasteCommand}`)
         // Act
         Quickshell.execDetached(["bash", "-c", pasteCommands.join(` && sleep ${root.pasteDelay} && `)]);
     }
