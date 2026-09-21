@@ -22,7 +22,7 @@ StyledPopup {
                 anchors.verticalCenter: parent.verticalCenter
                 fill: 0
                 font.weight: Font.Medium
-                text: "battery_android_full"
+                text: "battery_full"
                 iconSize: Appearance.font.pixelSize.large
                 color: Appearance.colors.colOnSurfaceVariant
             }

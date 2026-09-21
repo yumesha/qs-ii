@@ -458,7 +458,7 @@ ContentPage {
     }
 
     ContentSection {
-        icon: "screenshot_frame_2"
+        icon: "screenshot_region"
         title: Translation.tr("Screenshot tool")
 
         ConfigSwitch {

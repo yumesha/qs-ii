@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare a local video thumbnail without changing the selected wallpaper."""
+"""Prepare local wallpaper files without changing the selected wallpaper."""
 
 import hashlib
 import json
@@ -37,11 +37,27 @@ def prepare(filename):
     return {"path": str(path), "thumbnail": str(thumbnail)}
 
 
+def prepare_image(filename):
+    path = Path(filename).expanduser().resolve(strict=True)
+    if not path.is_file():
+        raise ValueError("Choose a readable image file.")
+    result = subprocess.run(
+        ["magick", "identify", "-quiet", "-format", "%w %h", str(path)],
+        capture_output=True, text=True, timeout=15,
+    )
+    if result.returncode or not result.stdout.strip():
+        raise ValueError("This file could not be opened as an image. Choose another file.")
+    return {"path": str(path), "thumbnail": str(path)}
+
+
 if __name__ == "__main__":
     try:
-        if len(sys.argv) != 2:
+        if len(sys.argv) == 3 and sys.argv[1] == "--image":
+            print(json.dumps(prepare_image(sys.argv[2])))
+        elif len(sys.argv) == 2:
+            print(json.dumps(prepare(sys.argv[1])))
+        else:
             raise ValueError("Choose a local video file.")
-        print(json.dumps(prepare(sys.argv[1])))
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-        print(f"Video wallpaper: {error}", file=sys.stderr)
+        print(f"Wallpaper: {error}", file=sys.stderr)
         sys.exit(1)

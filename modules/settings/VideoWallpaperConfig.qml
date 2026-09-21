@@ -14,7 +14,24 @@ ContentPage {
     forceWidth: true
     baseWidth: Math.min(600, Math.max(280, width - 40))
     readonly property var options: Config.options.background.video
-    readonly property bool hasVideo: Policy.isVideo(Config.options.background.wallpaperPath)
+    property string selectedWorkspace: ""
+    readonly property var selectedWallpaper: Wallpapers.forWorkspace(selectedWorkspace)
+    readonly property bool hasVideo: Policy.isVideo(selectedWallpaper.path)
+    readonly property var workspaceChoices: {
+        let names = Array.from({length: 10}, (_, index) => String(index + 1));
+        for (const workspace of HyprlandData.workspaces) {
+            names.push(Policy.workspaceKey(workspace));
+        }
+        for (const entry of Config.options.background.workspaceWallpapers) names.push(String(entry.workspace));
+        names = [...new Set(names)].filter(name => name && !name.startsWith("special:"));
+        names.sort((a, b) => {
+            const aNumber = /^\d+$/.test(a), bNumber = /^\d+$/.test(b);
+            if (aNumber && bNumber) return Number(a) - Number(b);
+            if (aNumber !== bNumber) return aNumber ? -1 : 1;
+            return a.localeCompare(b);
+        });
+        return [{displayName: Translation.tr("Default"), value: ""}, ...names.map(name => ({displayName: name, value: name}))];
+    }
     property var playbackStatus: []
 
     function statusText(status) {
@@ -34,12 +51,13 @@ ContentPage {
 
     FileDialog {
         id: videoPicker
-        title: Translation.tr("Choose a video wallpaper")
+        property string workspace: ""
+        title: root.selectedWorkspace ? Translation.tr("Choose wallpaper for workspace") + " " + root.selectedWorkspace : Translation.tr("Choose default wallpaper")
         fileMode: FileDialog.OpenFile
         options: FileDialog.DontUseNativeDialog
-        currentFolder: Directories.videos
-        nameFilters: [Translation.tr("Videos (*.mp4 *.webm *.mkv *.mov *.avi *.m4v *.MP4 *.WEBM *.MKV *.MOV *.AVI *.M4V)"), Translation.tr("All files (*)")]
-        onAccepted: Wallpapers.apply(Policy.localPath(selectedFile))
+        currentFolder: Directories.pictures
+        nameFilters: [Translation.tr("Wallpapers (*.png *.jpg *.jpeg *.webp *.avif *.bmp *.svg *.mp4 *.webm *.mkv *.mov *.avi *.m4v *.PNG *.JPG *.JPEG *.MP4 *.MOV *.MKV *.WEBM)"), Translation.tr("All files (*)")]
+        onAccepted: Wallpapers.applyToWorkspace(Policy.localPath(selectedFile), workspace)
     }
 
     Process {
@@ -62,13 +80,39 @@ ContentPage {
 
     ContentSection {
         icon: "video_file"
-        title: Translation.tr("Video Wallpaper")
+        title: Translation.tr("Workspace Wallpapers")
 
         StyledText {
             Layout.fillWidth: true
-            text: Translation.tr("Bring your desktop to life. Playback pauses automatically when you don't need it.")
+            text: Translation.tr("Give each workspace its own image or video. Unassigned workspaces use the default wallpaper.")
             wrapMode: Text.WordWrap
             color: Appearance.colors.colSubtext
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Choose workspace")
+            ConfigSelectionArray {
+                currentValue: root.selectedWorkspace
+                options: root.workspaceChoices
+                onSelected: value => { root.selectedWorkspace = value; Wallpapers.lastError = ""; }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            StyledText {
+                Layout.fillWidth: true
+                text: root.selectedWorkspace
+                    ? (root.selectedWallpaper.overridden ? Translation.tr("Custom wallpaper for workspace") : Translation.tr("Using default for workspace")) + " " + root.selectedWorkspace
+                    : Translation.tr("Default wallpaper for unassigned workspaces")
+                wrapMode: Text.WordWrap
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.small
+            }
+            RippleButtonWithIcon {
+                materialIcon: "my_location"
+                mainText: Translation.tr("Current workspace")
+                onClicked: root.selectedWorkspace = Policy.workspaceKey(HyprlandData.activeWorkspace)
+            }
         }
 
         Rectangle {
@@ -80,7 +124,7 @@ ContentPage {
             Image {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-                source: root.hasVideo ? Config.options.background.thumbnailPath : Config.options.background.wallpaperPath
+                source: Policy.fileUrl(root.hasVideo ? root.selectedWallpaper.thumbnail : root.selectedWallpaper.path)
                 sourceSize.width: 600
                 sourceSize.height: 210
                 asynchronous: true
@@ -97,7 +141,7 @@ ContentPage {
                 StyledText {
                     id: previewLabel
                     anchors.centerIn: parent
-                    text: root.hasVideo ? Translation.tr("Video preview") : Translation.tr("Current wallpaper")
+                    text: root.hasVideo ? Translation.tr("Video preview") : Translation.tr("Image wallpaper")
                     font.pixelSize: Appearance.font.pixelSize.small
                 }
             }
@@ -105,7 +149,7 @@ ContentPage {
 
         StyledText {
             Layout.fillWidth: true
-            text: root.hasVideo ? Policy.localPath(Config.options.background.wallpaperPath).split("/").pop() : Translation.tr("Choose a video to get started")
+            text: root.selectedWallpaper.path ? Policy.localPath(root.selectedWallpaper.path).split("/").pop() : Translation.tr("Choose an image or video")
             elide: Text.ElideMiddle
             font.weight: Font.Medium
         }
@@ -115,21 +159,28 @@ ContentPage {
             RippleButtonWithIcon {
                 Layout.fillWidth: true
                 materialIcon: "folder_open"
-                mainText: Wallpapers.applying ? Translation.tr("Applying…") : Translation.tr("Choose video")
+                mainText: Wallpapers.applying ? Translation.tr("Applying…") : Translation.tr("Choose image or video")
                 enabled: !Wallpapers.applying
-                onClicked: videoPicker.open()
+                onClicked: {
+                    videoPicker.workspace = root.selectedWorkspace;
+                    videoPicker.open();
+                }
             }
             RippleButtonWithIcon {
                 materialIcon: root.options.paused ? "play_arrow" : "pause"
                 mainText: root.options.paused ? Translation.tr("Resume") : Translation.tr("Pause")
                 enabled: root.hasVideo && root.options.enabled
+                StyledToolTip { text: Translation.tr("Pause or resume video wallpapers on all workspaces.") }
                 onClicked: root.options.paused = !root.options.paused
             }
             RippleButtonWithIcon {
-                materialIcon: "image"
-                mainText: Translation.tr("Restore image")
-                enabled: root.hasVideo && root.options.lastImagePath.length > 0 && !Wallpapers.applying
-                onClicked: Wallpapers.apply(root.options.lastImagePath)
+                materialIcon: root.selectedWorkspace ? "undo" : "image"
+                mainText: root.selectedWorkspace ? Translation.tr("Use default") : Translation.tr("Restore image")
+                enabled: !Wallpapers.applying && (root.selectedWorkspace ? root.selectedWallpaper.overridden : root.hasVideo && root.options.lastImagePath.length > 0)
+                onClicked: {
+                    if (root.selectedWorkspace) Wallpapers.clearWorkspace(root.selectedWorkspace);
+                    else Wallpapers.apply(root.options.lastImagePath);
+                }
             }
         }
 
@@ -142,7 +193,7 @@ ContentPage {
         }
 
         Repeater {
-            model: root.hasVideo && root.options.enabled ? root.playbackStatus : []
+            model: root.hasVideo && root.options.enabled ? root.playbackStatus.filter(status => !root.selectedWorkspace || status.workspace === root.selectedWorkspace) : []
             StyledText {
                 required property var modelData
                 Layout.fillWidth: true
@@ -164,7 +215,7 @@ ContentPage {
 
     ContentSection {
         icon: "energy_savings_leaf"
-        title: Translation.tr("Smart pause")
+        title: Translation.tr("Smart pause · all video wallpapers")
 
         ContentSubsection {
             title: Translation.tr("Pause when")
@@ -211,7 +262,7 @@ ContentPage {
 
     ContentSection {
         icon: "tune"
-        title: Translation.tr("Playback")
+        title: Translation.tr("Playback · all video wallpapers")
 
         ContentSubsection {
             title: Translation.tr("Video fit")
@@ -250,7 +301,7 @@ ContentPage {
         }
         StyledText {
             Layout.fillWidth: true
-            text: Translation.tr("Videos loop and restore at login. Audio plays from one monitor only.")
+            text: Translation.tr("Each monitor follows its active workspace. Videos loop and restart when you enter their workspace. Playback controls are shared, and audio plays from one monitor only.")
             wrapMode: Text.WordWrap
             color: Appearance.colors.colSubtext
             font.pixelSize: Appearance.font.pixelSize.small

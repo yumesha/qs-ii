@@ -286,7 +286,7 @@ ContentPage {
                         },
                         {
                             displayName: Translation.tr("Float"),
-                            icon: "page_header",
+                            icon: "web_asset",
                             value: 1
                         },
                         {

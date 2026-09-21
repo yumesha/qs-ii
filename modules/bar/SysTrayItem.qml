@@ -11,6 +11,21 @@ MouseArea {
     id: root
     required property SystemTrayItem item
     property bool targetMenuOpen: false
+    readonly property string fallbackSymbol: {
+        const id = root.item.id.toLowerCase();
+        if (id === "fcitx" || id === "fcitx5") return "keyboard";
+        if (id === "udiskie") return "usb";
+        return "";
+    }
+    readonly property bool missingThemeIcon: {
+        const url = String(root.item.icon);
+        // App-provided pixmaps and private icon directories must stay intact.
+        if (!root.fallbackSymbol || !url.startsWith("image://icon/") || url.includes("path=")) return false;
+        const name = decodeURIComponent(url.slice("image://icon/".length).split("?")[0]);
+        return !name || Quickshell.iconPath(name, true).length === 0;
+    }
+    readonly property bool usingFallback: fallbackSymbol.length > 0 &&
+        (!root.item.icon || missingThemeIcon || trayIcon.status === Image.Error)
 
     signal menuOpened(qsWindow: var)
     signal menuClosed()
@@ -65,15 +80,15 @@ MouseArea {
 
     IconImage {
         id: trayIcon
-        visible: !Config.options.bar.tray.monochromeIcons
-        source: root.item.icon
+        visible: !root.usingFallback && !Config.options.bar.tray.monochromeIcons
+        source: root.missingThemeIcon ? "" : root.item.icon
         anchors.centerIn: parent
         width: parent.width
         height: parent.height
     }
 
     Loader {
-        active: Config.options.bar.tray.monochromeIcons
+        active: !root.usingFallback && Config.options.bar.tray.monochromeIcons
         anchors.fill: trayIcon
         sourceComponent: Item {
             Desaturate {
@@ -89,6 +104,14 @@ MouseArea {
                 color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.9)
             }
         }
+    }
+
+    MaterialSymbol {
+        anchors.centerIn: parent
+        visible: root.usingFallback
+        text: root.fallbackSymbol
+        iconSize: Math.min(root.width, root.height)
+        color: Appearance.colors.colOnLayer0
     }
 
     PopupToolTip {

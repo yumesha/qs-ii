@@ -29,6 +29,8 @@ Variants {
         id: bgRoot
 
         required property var modelData
+        Component.onCompleted: SmartVideoWallpaper.registerBackground(modelData.name, bgRoot)
+        Component.onDestruction: SmartVideoWallpaper.unregisterBackground(modelData.name, bgRoot)
 
         // Hide when fullscreen
         property list<HyprlandWorkspace> workspacesForMonitor: Hyprland.workspaces.values.filter(workspace => workspace.monitor && workspace.monitor.name == monitor.name)
@@ -41,11 +43,13 @@ Variants {
         property int firstWorkspaceId: relevantWindows[0]?.workspace.id || 1
         property int lastWorkspaceId: relevantWindows[relevantWindows.length - 1]?.workspace.id || 10
         // Wallpaper
-        property bool wallpaperIsVideo: VideoPolicy.isVideo(Config.options.background.wallpaperPath)
-        property string wallpaperPath: wallpaperIsVideo ? Config.options.background.thumbnailPath : Config.options.background.wallpaperPath
+        readonly property string wallpaperWorkspace: VideoPolicy.workspaceKey(HyprlandData.monitors.find(item => item.name === modelData.name)?.activeWorkspace)
+        readonly property var selectedWallpaper: Wallpapers.forWorkspace(wallpaperWorkspace)
+        property bool wallpaperIsVideo: VideoPolicy.isVideo(selectedWallpaper.path)
+        property string wallpaperPath: wallpaperIsVideo ? selectedWallpaper.thumbnail : selectedWallpaper.path
         property bool wallpaperSafetyTriggered: {
             const enabled = Config.options.workSafety.enable.wallpaper
-            const sensitiveWallpaper = (CF.StringUtils.stringListContainsSubstring(Config.options.background.wallpaperPath.toLowerCase(), Config.options.workSafety.triggerCondition.fileKeywords))
+            const sensitiveWallpaper = (CF.StringUtils.stringListContainsSubstring(selectedWallpaper.path.toLowerCase(), Config.options.workSafety.triggerCondition.fileKeywords))
             const sensitiveNetwork = (CF.StringUtils.stringListContainsSubstring(Network.networkName.toLowerCase(), Config.options.workSafety.triggerCondition.networkNameKeywords))
             return enabled && sensitiveWallpaper && sensitiveNetwork;
         }
@@ -208,7 +212,7 @@ Variants {
                 property real effectiveValueY: Math.max(0, Math.min(1, valueY))
                 x: -(bgRoot.movableXSpace) - (effectiveValueX - 0.5) * 2 * bgRoot.movableXSpace
                 y: -(bgRoot.movableYSpace) - (effectiveValueY - 0.5) * 2 * bgRoot.movableYSpace
-                source: bgRoot.wallpaperSafetyTriggered ? "" : bgRoot.wallpaperPath
+                source: bgRoot.wallpaperSafetyTriggered ? "" : VideoPolicy.fileUrl(bgRoot.wallpaperPath)
                 fillMode: Image.PreserveAspectCrop
                 Behavior on x {
                     NumberAnimation {
@@ -236,7 +240,8 @@ Variants {
                 active: bgRoot.wallpaperIsVideo && Config.options.background.video.enabled
                 visible: !(GlobalStates.screenLocked && Config.options.background.video.pauseWhenLocked) && !bgRoot.wallpaperSafetyTriggered
                 sourceComponent: VideoWallpaper {
-                    sourcePath: Config.options.background.wallpaperPath
+                    sourcePath: bgRoot.selectedWallpaper.path
+                    property string workspace: bgRoot.wallpaperWorkspace
                     pauseReason: SmartVideoWallpaper.reasonForMonitor(bgRoot.modelData.name, bgRoot.wallpaperSafetyTriggered)
                     muted: Config.options.background.video.muted || SmartVideoWallpaper.audioMonitor !== bgRoot.modelData.name
                     volume: Config.options.background.video.volume / 100

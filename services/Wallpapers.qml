@@ -41,6 +41,38 @@ Singleton {
 
     function load () {} // For forcing initialization
 
+    function forWorkspace(workspace) {
+        return VideoPolicy.wallpaperForWorkspace(Config.options.background, workspace);
+    }
+
+    function clearWorkspace(workspace) {
+        if (!workspace || root.applying) return;
+        Config.options.background.workspaceWallpapers = Config.options.background.workspaceWallpapers
+            .filter(item => String(item.workspace) !== String(workspace));
+        root.lastError = "";
+        root.changed();
+    }
+
+    function applyToWorkspace(path, workspace) {
+        if (!workspace) {
+            root.apply(path);
+            return;
+        }
+        if (!path || root.applying) return;
+        prepareMedia(path, String(workspace));
+    }
+
+    function prepareMedia(path, workspace) {
+        root.lastError = "";
+        root.preparedResult = "";
+        videoPrepare.failure = "";
+        videoPrepare.workspace = workspace;
+        let command = ["python3", Quickshell.shellPath("scripts/colors/video-thumbnail.py")];
+        if (!VideoPolicy.isVideo(path)) command.push("--image");
+        command.push(VideoPolicy.localPath(path));
+        videoPrepare.exec(command);
+    }
+
     // Executions
     Process {
         id: applyProc
@@ -52,26 +84,36 @@ Singleton {
     Process {
         id: videoPrepare
         property string failure: ""
+        property string workspace: ""
         stdout: StdioCollector { onStreamFinished: root.preparedResult = text }
         stderr: StdioCollector { onStreamFinished: videoPrepare.failure = text.trim() }
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
-                root.lastError = failure || Translation.tr("Could not open this video.");
+                root.lastError = failure || Translation.tr("Could not open this wallpaper.");
                 return;
             }
             try {
                 const result = JSON.parse(root.preparedResult);
                 const background = Config.options.background;
-                if (!VideoPolicy.isVideo(background.wallpaperPath))
-                    background.video.lastImagePath = background.wallpaperPath;
-                background.thumbnailPath = result.thumbnail;
-                background.video.enabled = true;
-                background.video.paused = false;
-                background.wallpaperPath = result.path;
+                if (videoPrepare.workspace) {
+                    const entries = background.workspaceWallpapers.filter(item =>
+                        String(item.workspace) !== videoPrepare.workspace);
+                    entries.push({ workspace: videoPrepare.workspace, path: result.path, thumbnail: result.thumbnail });
+                    background.workspaceWallpapers = entries;
+                } else {
+                    if (!VideoPolicy.isVideo(background.wallpaperPath))
+                        background.video.lastImagePath = background.wallpaperPath;
+                    background.thumbnailPath = result.thumbnail;
+                    background.wallpaperPath = result.path;
+                }
+                if (VideoPolicy.isVideo(result.path)) {
+                    background.video.enabled = true;
+                    background.video.paused = false;
+                }
                 root.lastError = "";
                 root.changed();
             } catch (error) {
-                root.lastError = Translation.tr("Could not prepare the video wallpaper.");
+                root.lastError = Translation.tr("Could not prepare the wallpaper.");
             }
         }
     }
@@ -87,9 +129,7 @@ Singleton {
         if (!path || path.length === 0 || root.applying) return
         root.lastError = "";
         if (VideoPolicy.isVideo(path)) {
-            root.preparedResult = "";
-            videoPrepare.failure = "";
-            videoPrepare.exec(["python3", Quickshell.shellPath("scripts/colors/video-thumbnail.py"), VideoPolicy.localPath(path)]);
+            prepareMedia(path, "");
             return;
         }
         applyProc.exec([

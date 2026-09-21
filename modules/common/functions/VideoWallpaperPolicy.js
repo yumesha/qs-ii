@@ -14,6 +14,25 @@ function fileUrl(path) {
     return value ? "file://" + value.split("/").map(encodeURIComponent).join("/") : "";
 }
 
+function workspaceKey(workspace) {
+    if (!workspace) return "";
+    const name = String(workspace.name || workspace.id || "");
+    // Hyprland assigns negative IDs to ordinary named workspaces too.
+    return name === "special" || name.startsWith("special:") ? "" : name;
+}
+
+function wallpaperForWorkspace(background, workspace) {
+    const key = String(workspace || "");
+    const entry = key ? (background.workspaceWallpapers || []).find(item =>
+        String(item.workspace) === key && typeof item.path === "string" && item.path.length > 0) : null;
+    return {
+        workspace: key,
+        overridden: !!entry,
+        path: entry ? entry.path : background.wallpaperPath,
+        thumbnail: entry ? (entry.thumbnail || entry.path) : background.thumbnailPath
+    };
+}
+
 // Keep decisions monitor-local: hidden workspaces and other outputs cannot pause it.
 function pauseReason(options, state) {
     if (!options.enabled) return "disabled";

@@ -141,6 +141,8 @@ Singleton {
                 }
                 property string wallpaperPath: ""
                 property string thumbnailPath: ""
+                // Workspace names stay stable for both numbered and named workspaces.
+                property list<var> workspaceWallpapers: []
                 property string quote: ""
                 property bool hideWhenFullscreen: true
                 property JsonObject video: JsonObject {

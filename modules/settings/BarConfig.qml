@@ -91,7 +91,7 @@ ContentPage {
                         },
                         {
                             displayName: Translation.tr("Float"),
-                            icon: "page_header",
+                            icon: "web_asset",
                             value: 1
                         },
                         {
@@ -120,7 +120,7 @@ ContentPage {
                         },
                         {
                             displayName: Translation.tr("Line-separated"),
-                            icon: "split_scene",
+                            icon: "view_week",
                             value: true
                         }
                     ]
@@ -173,7 +173,7 @@ ContentPage {
         }
 
         ConfigSpinBox {
-            icon: "touch_long"
+            icon: "touch_app"
             text: Translation.tr("Number show delay when pressing Super (ms)")
             value: Config.options.bar.workspaces.showNumberDelay
             from: 0

@@ -8,7 +8,9 @@ import qs.modules.common
 import qs.modules.common.widgets
 
 ContentPage {
+    id: root
     forceWidth: true
+    readonly property string repositoryUrl: "https://github.com/yumesha/qs-ii"
 
     ContentSection {
         icon: "box"
@@ -88,19 +90,22 @@ ContentPage {
             spacing: 20
             Layout.topMargin: 10
             Layout.bottomMargin: 10
-            IconImage {
-                implicitSize: 80
-                source: Quickshell.iconPath("illogical-impulse")
+            CustomIcon {
+                Layout.preferredWidth: 80
+                Layout.preferredHeight: 80
+                source: "github-symbolic.svg"
+                colorize: true
+                color: Appearance.colors.colOnLayer0
             }
             ColumnLayout {
                 Layout.alignment: Qt.AlignVCenter
                 // spacing: 10
                 StyledText {
-                    text: Translation.tr("illogical-impulse")
+                    text: "yumesha/qs-ii"
                     font.pixelSize: Appearance.font.pixelSize.title
                 }
                 StyledText {
-                    text: "https://github.com/end-4/dots-hyprland"
+                    text: "[" + root.repositoryUrl + "](" + root.repositoryUrl + ")"
                     font.pixelSize: Appearance.font.pixelSize.normal
                     textFormat: Text.MarkdownText
                     onLinkActivated: (link) => {
@@ -117,9 +122,9 @@ ContentPage {
 
             RippleButtonWithIcon {
                 materialIcon: "auto_stories"
-                mainText: Translation.tr("Documentation")
+                mainText: Translation.tr("Wallpaper guide")
                 onClicked: {
-                    Qt.openUrlExternally("https://end-4.github.io/dots-hyprland-wiki/en/ii-qs/02usage/")
+                    Qt.openUrlExternally(root.repositoryUrl + "/blob/master/modules/background/VIDEO-WALLPAPER.md")
                 }
             }
             RippleButtonWithIcon {
@@ -127,25 +132,30 @@ ContentPage {
                 materialIconFill: false
                 mainText: Translation.tr("Issues")
                 onClicked: {
-                    Qt.openUrlExternally("https://github.com/end-4/dots-hyprland/issues")
+                    Qt.openUrlExternally(root.repositoryUrl + "/issues")
                 }
             }
             RippleButtonWithIcon {
-                materialIcon: "forum"
-                mainText: Translation.tr("Discussions")
+                materialIcon: "code"
+                mainText: Translation.tr("Source code")
                 onClicked: {
-                    Qt.openUrlExternally("https://github.com/end-4/dots-hyprland/discussions")
+                    Qt.openUrlExternally(root.repositoryUrl)
                 }
             }
             RippleButtonWithIcon {
-                materialIcon: "favorite"
-                mainText: Translation.tr("Donate")
+                materialIcon: "account_circle"
+                mainText: Translation.tr("GitHub profile")
                 onClicked: {
-                    Qt.openUrlExternally("https://github.com/sponsors/end-4")
+                    Qt.openUrlExternally("https://github.com/yumesha")
                 }
             }
 
-            
+        }
+        StyledText {
+            Layout.fillWidth: true
+            text: Translation.tr("Based on the illogical-impulse shell.")
+            font.pixelSize: Appearance.font.pixelSize.small
+            color: Appearance.colors.colSubtext
         }
     }
 }

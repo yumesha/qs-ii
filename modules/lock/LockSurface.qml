@@ -229,7 +229,7 @@ MouseArea {
 
         IconAndTextPair {
             visible: UPower.displayDevice.isLaptopBattery
-            icon: Battery.isCharging ? "bolt" : "battery_android_full"
+            icon: Battery.isCharging ? "bolt" : "battery_full"
             text: Math.round(Battery.percentage * 100)
             color: (Battery.isLow && !Battery.isCharging) ? Appearance.colors.colError : Appearance.colors.colOnSurfaceVariant
         }
