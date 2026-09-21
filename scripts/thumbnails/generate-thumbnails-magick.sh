@@ -47,12 +47,8 @@ generate_thumbnail() {
     local src="$1"
     local abs_path
     abs_path="$(realpath "$src")"
-    # Skip files with multiple frames (GIFs, videos, etc.)
-    case "${abs_path,,}" in
-        *.gif|*.mp4|*.webm|*.mkv|*.avi|*.mov)
-            return
-            ;;
-    esac
+    # Animated GIFs remain excluded; videos get a still preview below.
+    [[ "${abs_path,,}" == *.gif ]] && return 0
     local encoded_path
     encoded_path="$(urlencode "$abs_path")"
     local uri
@@ -64,7 +60,21 @@ generate_thumbnail() {
     if [ -f "$out" ]; then
         return
     fi
-    magick "$abs_path" -resize "${THUMBNAIL_SIZE}x${THUMBNAIL_SIZE}" "$out"
+    case "${abs_path,,}" in
+        *.mp4|*.webm|*.mkv|*.avi|*.mov|*.m4v)
+            local temporary
+            temporary=$(mktemp --suffix=.png "$CACHE_DIR/.video-XXXXXX")
+            if ffmpeg -nostdin -v error -y -i "$abs_path" -map 0:v:0 -frames:v 1 \
+                -vf "scale=${THUMBNAIL_SIZE}:${THUMBNAIL_SIZE}:force_original_aspect_ratio=decrease" \
+                -threads 1 "$temporary"; then
+                mv "$temporary" "$out"
+            else
+                rm -f "$temporary"
+                return 1
+            fi
+            ;;
+        *) magick "$abs_path" -resize "${THUMBNAIL_SIZE}x${THUMBNAIL_SIZE}" "$out" ;;
+    esac
 }
 
 # Parse arguments

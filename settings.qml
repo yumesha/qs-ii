@@ -29,6 +29,11 @@ ApplicationWindow {
             component: "modules/settings/QuickConfig.qml"
         },
         {
+            name: Translation.tr("Wallpaper"),
+            icon: "video_file",
+            component: "modules/settings/VideoWallpaperConfig.qml"
+        },
+        {
             name: Translation.tr("General"),
             icon: "browse",
             iconRotation: 180,

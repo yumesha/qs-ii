@@ -2,6 +2,7 @@ import qs.modules.common
 import qs.modules.common.models
 import qs.modules.common.functions
 import QtQuick
+import "../modules/common/functions/VideoWallpaperPolicy.js" as VideoPolicy
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
@@ -22,12 +23,17 @@ Singleton {
     property url defaultFolder: Qt.resolvedUrl(`${Directories.pictures}/Wallpapers`)
     property alias folderModel: folderModel // Expose for direct binding when needed
     property string searchQuery: ""
-    readonly property list<string> extensions: [ // TODO: add videos
-        "jpg", "jpeg", "png", "webp", "avif", "bmp", "svg"
+    readonly property list<string> extensions: [
+        "jpg", "jpeg", "png", "webp", "avif", "bmp", "svg",
+        "mp4", "webm", "mkv", "mov", "avi", "m4v"
     ]
     property list<string> wallpapers: [] // List of absolute file paths (without file://)
     readonly property bool thumbnailGenerationRunning: thumbgenProc.running
     property real thumbnailGenerationProgress: 0
+
+    readonly property bool applying: videoPrepare.running || applyProc.running
+    property string lastError: ""
+    property string preparedResult: ""
 
     signal changed()
     signal thumbnailGenerated(directory: string)
@@ -38,6 +44,36 @@ Singleton {
     // Executions
     Process {
         id: applyProc
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) root.lastError = Translation.tr("Could not apply the wallpaper. Check that the file is readable.");
+        }
+    }
+
+    Process {
+        id: videoPrepare
+        property string failure: ""
+        stdout: StdioCollector { onStreamFinished: root.preparedResult = text }
+        stderr: StdioCollector { onStreamFinished: videoPrepare.failure = text.trim() }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) {
+                root.lastError = failure || Translation.tr("Could not open this video.");
+                return;
+            }
+            try {
+                const result = JSON.parse(root.preparedResult);
+                const background = Config.options.background;
+                if (!VideoPolicy.isVideo(background.wallpaperPath))
+                    background.video.lastImagePath = background.wallpaperPath;
+                background.thumbnailPath = result.thumbnail;
+                background.video.enabled = true;
+                background.video.paused = false;
+                background.wallpaperPath = result.path;
+                root.lastError = "";
+                root.changed();
+            } catch (error) {
+                root.lastError = Translation.tr("Could not prepare the video wallpaper.");
+            }
+        }
     }
     
     function openFallbackPicker(darkMode = Appearance.m3colors.darkmode) {
@@ -48,7 +84,14 @@ Singleton {
     }
 
     function apply(path, darkMode = Appearance.m3colors.darkmode) {
-        if (!path || path.length === 0) return
+        if (!path || path.length === 0 || root.applying) return
+        root.lastError = "";
+        if (VideoPolicy.isVideo(path)) {
+            root.preparedResult = "";
+            videoPrepare.failure = "";
+            videoPrepare.exec(["python3", Quickshell.shellPath("scripts/colors/video-thumbnail.py"), VideoPolicy.localPath(path)]);
+            return;
+        }
         applyProc.exec([
             Directories.wallpaperSwitchScriptPath,
             "--image", path,
@@ -152,7 +195,9 @@ Singleton {
         thumbgenProc.running = false
         thumbgenProc.command = [
             "bash", "-c",
-            `${thumbgenScriptPath} --size ${size} --machine_progress -d ${FileUtils.trimFileProtocol(root.directory)} || ${generateThumbnailsMagickScriptPath} --size ${size} -d ${root.directory}`,
+            '"$1" --size "$3" --machine_progress -d "$4"; exec bash "$2" --size "$3" -d "$4"',
+            "wallpaper-thumbnails", thumbgenScriptPath, generateThumbnailsMagickScriptPath,
+            size, VideoPolicy.localPath(root.directory)
         ]
         root.thumbnailGenerationProgress = 0
         thumbgenProc.running = true

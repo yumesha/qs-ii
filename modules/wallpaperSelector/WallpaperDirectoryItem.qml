@@ -4,6 +4,7 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 import QtQuick
+import "../common/functions/VideoWallpaperPolicy.js" as VideoPolicy
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
@@ -14,7 +15,7 @@ MouseArea {
     id: root
     required property var fileModelData
     property bool isDirectory: fileModelData.fileIsDir
-    property bool useThumbnail: Images.isValidImageByName(fileModelData.fileName)
+    property bool useThumbnail: Images.isValidImageByName(fileModelData.fileName) || VideoPolicy.isVideo(fileModelData.fileName)
 
     property alias colBackground: background.color
     property alias colText: wallpaperItemName.color

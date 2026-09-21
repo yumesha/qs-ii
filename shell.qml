@@ -61,6 +61,7 @@ ShellRoot {
         ConflictKiller.load()
         Cliphist.refresh()
         Wallpapers.load()
+        SmartVideoWallpaper.selected // Initialize playback status IPC even with an image wallpaper.
     }
 
     LazyLoader { active: enableBar && Config.ready && !Config.options.bar.vertical; component: Bar {} }

@@ -1,3 +1,4 @@
+import "functions/VideoWallpaperPolicy.js" as VideoPolicy
 import QtQuick
 import Quickshell
 import qs.modules.common.functions
@@ -18,7 +19,7 @@ Singleton {
     // Transparency. The quadratic functions were derived from analysis of hand-picked transparency values.
     ColorQuantizer {
         id: wallColorQuant
-        source: Qt.resolvedUrl(Config.options.background.wallpaperPath)
+        source: Qt.resolvedUrl(VideoPolicy.isVideo(Config.options.background.wallpaperPath) ? Config.options.background.thumbnailPath : Config.options.background.wallpaperPath)
         depth: 0 // 2^0 = 1 color
         rescaleSize: 10
     }

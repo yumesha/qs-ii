@@ -40,11 +40,20 @@ Singleton {
         obj[keys[keys.length - 1]] = convertedValue;
     }
 
+    // Coalesce multi-field changes (video path + thumbnail + playback settings)
+    // into one write, so a file-watch reload cannot restore a partial update.
+    Timer {
+        id: saveTimer
+        interval: 80
+        onTriggered: configFile.writeAdapter()
+    }
+
     FileView {
+        id: configFile
         path: root.filePath
         watchChanges: true
-        onFileChanged: reload()
-        onAdapterUpdated: writeAdapter()
+        onFileChanged: if (!saveTimer.running) reload()
+        onAdapterUpdated: saveTimer.restart()
         onLoaded: root.ready = true
         onLoadFailed: error => {
             if (error == FileViewError.FileNotFound) {
@@ -134,6 +143,19 @@ Singleton {
                 property string thumbnailPath: ""
                 property string quote: ""
                 property bool hideWhenFullscreen: true
+                property JsonObject video: JsonObject {
+                    property bool enabled: true
+                    property string lastImagePath: ""
+                    property bool paused: false
+                    property bool muted: true
+                    property int volume: 20
+                    property real speed: 1.0
+                    property string fillMode: "crop"
+                    property string pauseMode: "covered"
+                    property bool pauseWhenLocked: true
+                    property bool pauseOnBattery: true
+                    property int batteryThreshold: 20
+                }
                 property JsonObject parallax: JsonObject {
                     property bool vertical: false
                     property bool autoVertical: false

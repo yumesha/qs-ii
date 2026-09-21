@@ -76,7 +76,7 @@ ContentPage {
                     sourceSize.width: parent.implicitWidth
                     sourceSize.height: parent.implicitHeight
                     fillMode: Image.PreserveAspectCrop
-                    source: Config.options.background.wallpaperPath
+                    source: SmartVideoWallpaper.selected ? Config.options.background.thumbnailPath : Config.options.background.wallpaperPath
                     cache: false
                     layer.enabled: true
                     layer.effect: OpacityMask {

@@ -7,6 +7,7 @@ import qs.modules.common.models
 import qs.modules.common.widgets
 import qs.modules.common.functions as CF
 import QtQuick
+import "../common/functions/VideoWallpaperPolicy.js" as VideoPolicy
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
 import Quickshell
@@ -40,11 +41,11 @@ Variants {
         property int firstWorkspaceId: relevantWindows[0]?.workspace.id || 1
         property int lastWorkspaceId: relevantWindows[relevantWindows.length - 1]?.workspace.id || 10
         // Wallpaper
-        property bool wallpaperIsVideo: Config.options.background.wallpaperPath.endsWith(".mp4") || Config.options.background.wallpaperPath.endsWith(".webm") || Config.options.background.wallpaperPath.endsWith(".mkv") || Config.options.background.wallpaperPath.endsWith(".avi") || Config.options.background.wallpaperPath.endsWith(".mov")
+        property bool wallpaperIsVideo: VideoPolicy.isVideo(Config.options.background.wallpaperPath)
         property string wallpaperPath: wallpaperIsVideo ? Config.options.background.thumbnailPath : Config.options.background.wallpaperPath
         property bool wallpaperSafetyTriggered: {
             const enabled = Config.options.workSafety.enable.wallpaper
-            const sensitiveWallpaper = (CF.StringUtils.stringListContainsSubstring(wallpaperPath.toLowerCase(), Config.options.workSafety.triggerCondition.fileKeywords))
+            const sensitiveWallpaper = (CF.StringUtils.stringListContainsSubstring(Config.options.background.wallpaperPath.toLowerCase(), Config.options.workSafety.triggerCondition.fileKeywords))
             const sensitiveNetwork = (CF.StringUtils.stringListContainsSubstring(Network.networkName.toLowerCase(), Config.options.workSafety.triggerCondition.networkNameKeywords))
             return enabled && sensitiveWallpaper && sensitiveNetwork;
         }
@@ -93,7 +94,7 @@ Variants {
             left: true
             right: true
         }
-        color: CF.ColorUtils.transparentize(CF.ColorUtils.mix(Appearance.colors.colLayer0, Appearance.colors.colPrimary, 0.75), (bgRoot.wallpaperIsVideo ? 1 : 0))
+        color: CF.ColorUtils.mix(Appearance.colors.colLayer0, Appearance.colors.colPrimary, 0.75)
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
         }
@@ -178,7 +179,7 @@ Variants {
             StyledImage {
                 id: wallpaper
                 visible: opacity > 0 && !blurLoader.active
-                opacity: (status === Image.Ready && !bgRoot.wallpaperIsVideo) ? 1 : 0
+                opacity: status === Image.Ready ? 1 : 0
                 cache: false
                 smooth: false
                 // Range = groups that workspaces span on
@@ -230,6 +231,23 @@ Variants {
             }
 
             Loader {
+                id: videoLoader
+                anchors.fill: parent
+                active: bgRoot.wallpaperIsVideo && Config.options.background.video.enabled
+                visible: !(GlobalStates.screenLocked && Config.options.background.video.pauseWhenLocked) && !bgRoot.wallpaperSafetyTriggered
+                sourceComponent: VideoWallpaper {
+                    sourcePath: Config.options.background.wallpaperPath
+                    pauseReason: SmartVideoWallpaper.reasonForMonitor(bgRoot.modelData.name, bgRoot.wallpaperSafetyTriggered)
+                    muted: Config.options.background.video.muted || SmartVideoWallpaper.audioMonitor !== bgRoot.modelData.name
+                    volume: Config.options.background.video.volume / 100
+                    speed: Config.options.background.video.speed
+                    fit: Config.options.background.video.fillMode
+                    Component.onCompleted: SmartVideoWallpaper.registerPlayer(bgRoot.modelData.name, this)
+                    Component.onDestruction: SmartVideoWallpaper.unregisterPlayer(bgRoot.modelData.name, this)
+                }
+            }
+
+            Loader {
                 id: blurLoader
                 active: Config.options.lock.blur.enable && (GlobalStates.screenLocked || scaleAnim.running)
                 anchors.fill: wallpaper
@@ -243,7 +261,7 @@ Variants {
                     }
                 }
                 sourceComponent: GaussianBlur {
-                    source: wallpaper
+                    source: videoLoader.active && !Config.options.background.video.pauseWhenLocked ? videoLoader : wallpaper
                     radius: GlobalStates.screenLocked ? Config.options.lock.blur.radius : 0
                     samples: radius * 2 + 1
 
