@@ -335,8 +335,8 @@ ShellRoot {
                 }
                 command: ["bash", "-c", 
                     `magick ${StringUtils.shellSingleQuoteEscape(panelWindow.screenshotPath)} `
-                    + `-crop ${panelWindow.regionWidth * panelWindow.monitorScale}x${panelWindow.regionHeight * panelWindow.monitorScale}+${panelWindow.regionX * panelWindow.monitorScale}+${panelWindow.regionY * panelWindow.monitorScale} - ` 
-                    + `| ${panelWindow.mouseButton === Qt.LeftButton ? "wl-copy" : "swappy -f -"}`]
+                    + `-crop ${panelWindow.regionWidth * panelWindow.monitorScale}x${panelWindow.regionHeight * panelWindow.monitorScale}+${panelWindow.regionX * panelWindow.monitorScale}+${panelWindow.regionY * panelWindow.monitorScale} png:- `
+                    + `| ${panelWindow.mouseButton === Qt.LeftButton ? "wl-copy --type image/png" : "swappy -f -"}`]
             }
 
             ScreencopyView {
