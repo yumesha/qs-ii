@@ -35,6 +35,7 @@ ContentPage {
     property var playbackStatus: []
 
     function statusText(status) {
+        if (status.recovering) return Translation.tr("Restarting stalled video…");
         if (status.error) return status.error;
         const reasons = {
             "manual": Translation.tr("Paused by you"),

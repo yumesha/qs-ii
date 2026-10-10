@@ -76,6 +76,13 @@ Singleton {
                 const player = root.players[name];
                 return { monitor: name, playing: player.playing, reason: player.pauseReason,
                     workspace: player.workspace, path: player.sourcePath,
+                    recovering: player.recovering, recoveryCount: player.recoveryCount,
+                    recoveryAttempts: player.recoveryAttempts, recoveryExhausted: player.recoveryExhausted,
+                    mediaStatus: player.mediaStatus, playbackState: player.playbackState,
+                    progressAgeMs: Math.max(0, Date.now() - player.lastProgressAt),
+                    frameAgeMs: Math.max(0, Date.now() - player.lastFrameAt),
+                    lastRecoveryReason: player.lastRecoveryReason,
+                    compatibleTextureUpload: Quickshell.env("QT_DISABLE_HW_TEXTURES_CONVERSION") === "1",
                     error: player.error, position: player.position, hasVideo: player.hasVideo };
             }));
         }

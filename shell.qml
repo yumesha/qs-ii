@@ -2,6 +2,9 @@
 //@ pragma Env QS_NO_RELOAD_POPUP=1
 //@ pragma Env QT_QUICK_CONTROLS_STYLE=Basic
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
+// Avoid importing AMD-decoded VAAPI textures directly into the NVIDIA renderer.
+// Hardware decoding remains available; frames use the compatible upload path.
+//@ pragma Env QT_DISABLE_HW_TEXTURES_CONVERSION=1
 
 // Adjust this to make the shell smaller or larger
 //@ pragma Env QT_SCALE_FACTOR=1
@@ -83,4 +86,3 @@ ShellRoot {
     LazyLoader { active: enableVerticalBar && Config.ready && Config.options.bar.vertical; component: VerticalBar {} }
     LazyLoader { active: enableWallpaperSelector; component: WallpaperSelector {} }
 }
-
