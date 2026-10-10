@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
+import "../common/functions/QuickshellCli.js" as QuickshellCli
 
 Item {
     id: root
@@ -25,7 +26,7 @@ Item {
             visible: Config.options.bar.utilButtons.showScreenSnip
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
-                onClicked: Quickshell.execDetached(["qs", "-p", Quickshell.shellPath("screenshot.qml")])
+                onClicked: Quickshell.execDetached(QuickshellCli.command(["-p", Quickshell.shellPath("screenshot.qml")]))
                 MaterialSymbol {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 1

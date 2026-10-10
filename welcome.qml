@@ -17,6 +17,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import "modules/common/functions/QuickshellCli.js" as QuickshellCli
 
 ApplicationWindow {
     id: root
@@ -372,7 +373,7 @@ ApplicationWindow {
                         RippleButtonWithIcon {
                             materialIcon: "keyboard_alt"
                             onClicked: {
-                                Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "cheatsheet", "toggle"]);
+                                Quickshell.execDetached(QuickshellCli.command(["-p", Quickshell.shellPath(""), "ipc", "call", "cheatsheet", "toggle"]));
                             }
                             mainContentComponent: Component {
                                 RowLayout {

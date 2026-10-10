@@ -11,6 +11,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Bluetooth
 import Quickshell.Hyprland
+import "../common/functions/QuickshellCli.js" as QuickshellCli
 
 Item {
     id: root
@@ -96,7 +97,7 @@ Item {
                         buttonIcon: "settings"
                         onClicked: {
                             GlobalStates.sidebarRightOpen = false;
-                            Quickshell.execDetached(["qs", "-p", root.settingsQmlPath]);
+                            Quickshell.execDetached(QuickshellCli.command(["-p", root.settingsQmlPath, "--no-duplicate"]));
                         }
                         StyledToolTip {
                             text: Translation.tr("Settings")

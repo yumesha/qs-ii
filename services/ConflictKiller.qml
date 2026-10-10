@@ -6,6 +6,7 @@ import qs.modules.common.functions
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../modules/common/functions/QuickshellCli.js" as QuickshellCli
 
 Singleton {
     id: root
@@ -41,7 +42,7 @@ Singleton {
                     else Quickshell.execDetached(["killall", "mako", "dunst"])
                 }
                 if (openDialog) {
-                    Quickshell.execDetached(["qs", "-p", root.killDialogQmlPath])
+                    Quickshell.execDetached(QuickshellCli.command(["-p", root.killDialogQmlPath]))
                 }
             }
         }

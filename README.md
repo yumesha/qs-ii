@@ -42,12 +42,28 @@ Open **Settings → Wallpaper** and use an image and a short video.
 | Disable video playback | A static thumbnail remains. |
 | Reopen Settings or log in again | Preferences and workspace assignments are preserved. |
 | Check settings and tray icons | Icons render without text fragments or checkerboards. |
+| Click Settings repeatedly after a shell crash/restart | One Settings window opens; no extra bars or wallpapers appear. |
 
 Playback controls apply to all video wallpapers. Each monitor follows its own
 active workspace. Switching to a different video starts it from the beginning.
 Settings save automatically.
 
+## Launcher regression tests
+
+With Node.js installed, run `node --test tests/quickshell-cli.test.cjs`.
+The tests use a fake `qs` executable and do not launch or stop the desktop.
+
 ## Troubleshooting
+
+After a Quickshell crash, child processes can inherit private crash-recovery
+variables that cause `qs` to reopen the desktop instead of the requested window.
+The shell's launch helper clears these variables for Settings, other shell
+utilities, and IPC calls. Settings also uses `--no-duplicate`.
+If a terminal inherited the same variables, clear them before running `qs`:
+
+```bash
+unset __QUICKSHELL_CRASH_DUMP_PID __QUICKSHELL_CRASH_INFO_FD
+```
 
 Check running instances and recent logs:
 

@@ -8,6 +8,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import "../common/functions/VideoWallpaperPolicy.js" as Policy
+import "../common/functions/QuickshellCli.js" as QuickshellCli
 
 ContentPage {
     id: root
@@ -63,7 +64,7 @@ ContentPage {
 
     Process {
         id: queryStatus
-        command: ["qs", "-c", "ii", "ipc", "call", "videoWallpaper", "status"]
+        command: QuickshellCli.command(["-c", "ii", "ipc", "call", "videoWallpaper", "status"])
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.playbackStatus = JSON.parse(text); }
