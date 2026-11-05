@@ -1,128 +1,98 @@
 pragma Singleton
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.modules.common
+import "../modules/common/functions/NightLightPolicy.js" as Policy
 import Quickshell
 import Quickshell.Io
 
-/**
- * Simple hyprsunset service with automatic mode.
- * In theory we don't need this because hyprsunset has a config file, but it somehow doesn't work.
- * It should also be possible to control it via hyprctl, but it doesn't work consistently either so we're just killing and launching.
- */
 Singleton {
     id: root
-    property string from: Config.options?.light?.night?.from ?? "19:00" 
-    property string to: Config.options?.light?.night?.to ?? "06:30"
-    property bool automatic: Config.options?.light?.night?.automatic && (Config?.ready ?? true)
-    property int colorTemperature: Config.options?.light?.night?.colorTemperature ?? 5000
-    property bool shouldBeOn
-    property bool firstEvaluation: true
+    readonly property var options: Config.options.light.night
+    readonly property bool automatic: options.automatic
+    readonly property int colorTemperature: options.colorTemperature
+    readonly property bool desiredActive: Config.ready && Policy.desired(options, DateTime.clock.hours, DateTime.clock.minutes)
+    readonly property bool applying: applyProc.running
     property bool active: false
+    property string error: ""
+    property bool applyAgain: false
 
-    property int fromHour: Number(from.split(":")[0])
-    property int fromMinute: Number(from.split(":")[1])
-    property int toHour: Number(to.split(":")[0])
-    property int toMinute: Number(to.split(":")[1])
-
-    property int clockHour: DateTime.clock.hours
-    property int clockMinute: DateTime.clock.minutes
-
-    property var manualActive
-    property int manualActiveHour
-    property int manualActiveMinute
-
-    onClockMinuteChanged: reEvaluate()
-    onAutomaticChanged: {
-        root.manualActive = undefined;
-        root.firstEvaluation = true;
-        reEvaluate();
+    onDesiredActiveChanged: reEvaluate()
+    onAutomaticChanged: reEvaluate()
+    onColorTemperatureChanged: reEvaluate()
+    Component.onCompleted: reEvaluate()
+    Connections {
+        target: Config
+        function onReadyChanged() { root.reEvaluate(); }
     }
 
-    function inBetween(t, from, to) {
-        if (from < to) {
-            return (t >= from && t <= to);
-        } else {
-            // Wrapped around midnight
-            return (t >= from || t <= to);
-        }
+    function load() { root.reEvaluate(); }
+    function fetchState() { root.reEvaluate(); }
+    function reEvaluate() { if (Config.ready) Qt.callLater(root.applyState); }
+
+    function setManual(enabled) {
+        if (!Config.ready) return;
+        // Set both fields before the coalesced config write/apply. Manual choice
+        // is authoritative until the user explicitly opts back into the schedule.
+        root.options.manualEnabled = enabled;
+        root.options.automatic = false;
+        root.reEvaluate();
+    }
+    function toggle() { root.setManual(!root.desiredActive); }
+    function toggleAutomatic() {
+        if (!Config.ready) return;
+        if (root.automatic) root.options.manualEnabled = root.desiredActive;
+        root.options.automatic = !root.automatic;
+        root.reEvaluate();
     }
 
-    function reEvaluate() {
-        const t = clockHour * 60 + clockMinute;
-        const from = fromHour * 60 + fromMinute;
-        const to = toHour * 60 + toMinute;
-        const manualActive = manualActiveHour * 60 + manualActiveMinute;
-
-        if (root.manualActive !== undefined && (inBetween(from, manualActive, t) || inBetween(to, manualActive, t))) {
-            root.manualActive = undefined;
-        }
-        root.shouldBeOn = inBetween(t, from, to);
-        if (firstEvaluation) {
-            firstEvaluation = false;
-            root.ensureState();
-        }
-    }
-
-    onShouldBeOnChanged: ensureState()
-    function ensureState() {
-        // console.log("[Hyprsunset] Ensuring state:", root.shouldBeOn, "Automatic mode:", root.automatic);
-        if (!root.automatic || root.manualActive !== undefined)
-            return;
-        if (root.shouldBeOn) {
-            root.enable();
-        } else {
-            root.disable();
-        }
-    }
-
-    function load() { } // Dummy to force init
-
-    function enable() {
-        root.active = true;
-        // console.log("[Hyprsunset] Enabling");
-        Quickshell.execDetached(["bash", "-c", `pidof hyprsunset || hyprsunset --temperature ${root.colorTemperature}`]);
-    }
-
-    function disable() {
-        root.active = false;
-        // console.log("[Hyprsunset] Disabling");
-        Quickshell.execDetached(["bash", "-c", `pkill hyprsunset`]);
-    }
-
-    function fetchState() {
-        fetchProc.running = true;
+    function applyState() {
+        if (!Config.ready) return;
+        if (applyProc.running) { root.applyAgain = true; return; }
+        applyProc.result = "";
+        applyProc.requested = root.desiredActive;
+        applyProc.requestedTemperature = root.colorTemperature;
+        applyProc.exec(["python3", "-B", Quickshell.shellPath("scripts/session/night-light.py"),
+            root.desiredActive ? "on" : "off", String(root.colorTemperature)]);
     }
 
     Process {
-        id: fetchProc
-        running: true
-        command: ["bash", "-c", "hyprctl hyprsunset temperature"]
-        stdout: StdioCollector {
-            id: stateCollector
-            onStreamFinished: {
-                const output = stateCollector.text.trim();
-                if (output.length == 0 || output.startsWith("Couldn't"))
-                    root.active = false;
-                else
-                    root.active = (output != "6500"); // 6500 is the default when off
-                // console.log("[Hyprsunset] Fetched state:", output, "->", root.active);
+        id: applyProc
+        property string result: ""
+        property bool requested: false
+        property int requestedTemperature: 5000
+        stdout: StdioCollector { onStreamFinished: applyProc.result = text }
+        onExited: (exitCode, exitStatus) => {
+            try {
+                const response = JSON.parse(result);
+                if (exitCode !== 0 || exitStatus !== 0 || !response.ok) {
+                    root.error = response.error || "Could not apply the night-light preference.";
+                } else {
+                    root.active = response.active;
+                    root.error = "";
+                }
+            } catch (_) { root.error = "Could not read the night-light service response."; }
+            if (root.applyAgain || requested !== root.desiredActive || requestedTemperature !== root.colorTemperature) {
+                root.applyAgain = false;
+                root.reEvaluate();
             }
         }
     }
 
-    function toggle() {
-        if (root.manualActive === undefined) {
-            root.manualActive = root.active;
-            root.manualActiveHour = root.clockHour;
-            root.manualActiveMinute = root.clockMinute;
-        }
+    // Repair a backend restart without forgetting a saved manual choice.
+    Timer {
+        interval: 60000
+        repeat: true
+        running: Config.ready
+        onTriggered: root.reEvaluate()
+    }
 
-        root.manualActive = !root.manualActive;
-        if (root.manualActive) {
-            root.enable();
-        } else {
-            root.disable();
+    IpcHandler {
+        target: "nightLight"
+        function status(): string {
+            return JSON.stringify({ automatic: root.automatic, manualEnabled: root.options.manualEnabled,
+                desiredActive: root.desiredActive, active: root.active, applying: root.applying, error: root.error });
         }
     }
 }

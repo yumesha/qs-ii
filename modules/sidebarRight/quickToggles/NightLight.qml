@@ -3,26 +3,18 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs
 import qs.services
-import Quickshell.Io
 
 QuickToggleButton {
     id: nightLightButton
-    property bool enabled: Hyprsunset.active
-    toggled: enabled
-    buttonIcon: Config.options.light.night.automatic ? "night_sight_auto" : "bedtime"
-    onClicked: {
-        Hyprsunset.toggle()
-    }
+    enabled: Config.ready && !Hyprsunset.applying
+    toggled: Hyprsunset.desiredActive
+    buttonIcon: Hyprsunset.error ? "error" : Hyprsunset.automatic ? "night_sight_auto" : "bedtime"
+    onClicked: Hyprsunset.toggle()
+    altAction: () => Hyprsunset.toggleAutomatic()
 
-    altAction: () => {
-        Config.options.light.night.automatic = !Config.options.light.night.automatic
-    }
-
-    Component.onCompleted: {
-        Hyprsunset.fetchState()
-    }
-    
     StyledToolTip {
-        text: Translation.tr("Night Light | Right-click to toggle Auto mode")
+        text: Hyprsunset.error || ((Hyprsunset.automatic ? Translation.tr("Night Light: Automatic")
+            : Hyprsunset.desiredActive ? Translation.tr("Night Light: Manual on") : Translation.tr("Night Light: Manual off"))
+            + "\n" + Translation.tr("Click for manual control | Right-click to toggle Auto"))
     }
 }
