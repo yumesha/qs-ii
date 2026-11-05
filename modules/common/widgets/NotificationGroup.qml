@@ -153,6 +153,7 @@ MouseArea { // Notification group area
                 Layout.fillWidth: false
                 image: root?.multipleNotifications ? "" : notificationGroup?.notifications[0]?.image ?? ""
                 appIcon: notificationGroup?.appIcon
+                appName: notificationGroup?.appName ?? ""
                 summary: notificationGroup?.notifications[root.notificationCount - 1]?.summary
             }
 
