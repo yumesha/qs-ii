@@ -77,6 +77,7 @@ Singleton {
 
             property JsonObject idle: JsonObject {
                 property bool inhibit: false
+                property string instanceSignature: "" // Session that explicitly owned this idle choice.
             }
 
             property JsonObject timer: JsonObject {
