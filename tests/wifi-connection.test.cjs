@@ -55,3 +55,38 @@ test('multiple matching saved profiles remain explicit rather than picking one',
     assert.equal(context.matchingSavedProfiles({ssid: 'Demo', security: 'WPA2'}, profiles).length, 2);
     assert.equal(context.matchingSavedProfiles({ssid: 'New', security: 'WPA2'}, profiles).length, 0);
 });
+
+test('active network names ignore bridges and loopback even when listed first', () => {
+    const state = plain(context.activeConnectionInfo('Docker:bridge:br-demo\nLoopback:loopback:lo\nExample Profile:802-11-wireless:wlan-demo\n'));
+    assert.deepEqual(state, {ethernet: false, wifi: true, ethernetName: '', wifiName: 'Example Profile', wifiDevice: 'wlan-demo'});
+});
+
+test('wired and wireless names remain separate when both are connected', () => {
+    const state = plain(context.activeConnectionInfo('Example Wired:802-3-ethernet:eth-demo\nExample Profile:802-11-wireless:wlan-demo\n'));
+    assert.equal(state.ethernet, true);
+    assert.equal(state.wifi, true);
+    assert.equal(state.ethernetName, 'Example Wired');
+    assert.equal(state.wifiName, 'Example Profile');
+});
+
+test('connection-name parsing preserves escaped colons, backslashes, and spaces', () => {
+    const state = plain(context.activeConnectionInfo(String.raw`  Example\: Wired\\Home  :802-3-ethernet:eth-demo`));
+    assert.equal(state.ethernetName, '  Example: Wired\\Home  ');
+});
+
+test('disconnected snapshots clear names instead of retaining stale connectivity', () => {
+    for (const input of ['', 'Loopback:loopback:lo\nDocker:bridge:br-demo\n', 'malformed']) {
+        assert.deepEqual(plain(context.activeConnectionInfo(input)), {ethernet: false, wifi: false, ethernetName: '', wifiName: '', wifiDevice: ''});
+    }
+});
+
+test('wireless display uses the active SSID on the selected adapter', () => {
+    const networks = [
+        {ssid: 'Inactive', active: false, device: 'wlan-demo'},
+        {ssid: 'Other adapter', active: true, device: 'wlan-other'},
+        {ssid: 'Example <b>Wi-Fi</b>', active: true, device: 'wlan-demo'},
+    ];
+    assert.equal(context.connectedWifiName(networks, 'wlan-demo'), 'Example <b>Wi-Fi</b>');
+    assert.equal(context.connectedWifiName(networks, 'wlan-missing'), '');
+    assert.equal(context.connectedWifiName([], 'wlan-demo'), '');
+});
