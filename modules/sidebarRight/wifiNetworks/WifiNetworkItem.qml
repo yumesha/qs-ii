@@ -9,10 +9,23 @@ import QtQuick.Layouts
 DialogListItem {
     id: root
     required property WifiAccessPoint wifiNetwork
+    readonly property bool connecting: Network.wifiConnecting && Network.wifiConnectTarget === wifiNetwork
+    readonly property bool acting: Network.wifiBusy && Network.wifiActionTarget === wifiNetwork
+    readonly property var savedProfiles: Network.savedWifiProfiles.filter(profile => profile.ssid === root.wifiNetwork?.ssid)
 
-    active: (wifiNetwork?.askingPassword || wifiNetwork?.active) ?? false
+    function clearPassword() {
+        passwordField.clear();
+    }
+    function submitPassword() {
+        if (Network.wifiBusy || !passwordField.text.length) return;
+        Network.changePassword(root.wifiNetwork, passwordField.text);
+        root.clearPassword();
+    }
+
+    active: (wifiNetwork?.askingPassword || wifiNetwork?.active || wifiNetwork?.confirmingForget) ?? false
     onClicked: {
-        Network.connectToWifiNetwork(wifiNetwork);
+        if (!Network.wifiBusy && !wifiNetwork?.askingPassword && !wifiNetwork?.confirmingForget)
+            Network.requestWifiConnection(wifiNetwork);
     }
 
     contentItem: ColumnLayout {
@@ -39,6 +52,7 @@ DialogListItem {
                 color: Appearance.colors.colOnSurfaceVariant
                 elide: Text.ElideRight
                 text: root.wifiNetwork?.ssid ?? Translation.tr("Unknown")
+                textFormat: Text.PlainText
             }
             MaterialSymbol {
                 visible: (root.wifiNetwork?.isSecure || root.wifiNetwork?.active) ?? false
@@ -48,22 +62,49 @@ DialogListItem {
             }
         }
 
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            visible: root.wifiNetwork?.active ?? false
+            text: Network.ethernet
+                ? Translation.tr("Wi-Fi connected · Ethernet also connected")
+                : Translation.tr("Wi-Fi connected")
+            wrapMode: Text.WordWrap
+            color: Appearance.colors.colSubtext
+            font.pixelSize: Appearance.font.pixelSize.small
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            visible: root.connecting || root.acting || (root.wifiNetwork?.connectionError.length ?? 0) > 0
+            text: root.connecting ? Translation.tr("Connecting…")
+                : root.acting ? (Network.wifiAction === "forget" ? Translation.tr("Forgetting…") : Translation.tr("Disconnecting…"))
+                : Translation.tr(root.wifiNetwork?.connectionError ?? "")
+            wrapMode: Text.WordWrap
+            color: root.connecting || root.acting ? Appearance.colors.colSubtext : Appearance.m3colors.m3error
+            font.pixelSize: Appearance.font.pixelSize.small
+        }
+
         ColumnLayout { // Password
             id: passwordPrompt
             Layout.topMargin: 8
             visible: root.wifiNetwork?.askingPassword ?? false
+            enabled: !Network.wifiBusy
+            onVisibleChanged: if (!visible) root.clearPassword()
 
-            MaterialTextField {
-                id: passwordField
+            RowLayout {
                 Layout.fillWidth: true
-                placeholderText: Translation.tr("Password")
-
-                // Password
-                echoMode: TextInput.Password
-                inputMethodHints: Qt.ImhSensitiveData
-
-                onAccepted: {
-                    Network.changePassword(root.wifiNetwork, passwordField.text);
+                spacing: 6
+                MaterialTextField {
+                    id: passwordField
+                    objectName: "wifiPassword"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    placeholderText: Translation.tr("Password")
+                    echoMode: TextInput.Password
+                    inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+                    onAccepted: root.submitPassword()
                 }
             }
 
@@ -75,17 +116,29 @@ DialogListItem {
                 }
 
                 DialogButton {
+                    objectName: "wifiPasswordCancel"
                     buttonText: Translation.tr("Cancel")
                     onClicked: {
                         root.wifiNetwork.askingPassword = false;
+                        root.wifiNetwork.connectionError = "";
+                        root.clearPassword();
+                    }
+                }
+
+                DialogButton {
+                    buttonText: Translation.tr("Use saved")
+                    visible: root.savedProfiles.length > 0
+                    enabled: !Network.wifiBusy
+                    onClicked: {
+                        Network.connectToWifiNetwork(root.wifiNetwork);
+                        root.clearPassword();
                     }
                 }
 
                 DialogButton {
                     buttonText: Translation.tr("Connect")
-                    onClicked: {
-                        Network.changePassword(root.wifiNetwork, passwordField.text);
-                    }
+                    enabled: passwordField.text.length > 0 && !Network.wifiBusy
+                    onClicked: root.submitPassword()
                 }
             }
         }

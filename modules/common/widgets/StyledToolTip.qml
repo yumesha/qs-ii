@@ -8,6 +8,7 @@ ToolTip {
     id: root
     property bool extraVisibleCondition: true
     property bool alternativeVisibleCondition: false
+    property int textFormat: Text.AutoText
     readonly property bool internalVisibleCondition: (extraVisibleCondition && (parent.hovered === undefined || parent?.hovered)) || alternativeVisibleCondition
     verticalPadding: 5
     horizontalPadding: 10
@@ -18,6 +19,7 @@ ToolTip {
     contentItem: StyledToolTipContent {
         id: contentItem
         text: root.text
+        textFormat: root.textFormat
         shown: root.internalVisibleCondition
         horizontalPadding: root.horizontalPadding
         verticalPadding: root.verticalPadding

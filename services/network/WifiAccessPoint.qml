@@ -9,6 +9,10 @@ QtObject {
     readonly property bool active: lastIpcObject.active
     readonly property string security: lastIpcObject.security
     readonly property bool isSecure: security.length > 0
+    readonly property string device: lastIpcObject.device || ""
 
+    property bool confirmingForget: false
+    property var forgetProfileIds: []
     property bool askingPassword: false
+    property string connectionError: ""
 }

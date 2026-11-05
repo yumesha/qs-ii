@@ -7,6 +7,7 @@ import QtQuick.Layouts
 Item {
     id: root
     required property string text
+    property int textFormat: Text.AutoText
     property bool shown: false
     property real horizontalPadding: 10
     property real verticalPadding: 5
@@ -42,6 +43,7 @@ Item {
             id: tooltipTextObject
             anchors.centerIn: parent
             text: root.text
+            textFormat: root.textFormat
             font.pixelSize: Appearance?.font.pixelSize.smaller ?? 14
             font.hintingPreference: Font.PreferNoHinting // Prevent shaky text
             color: Appearance?.colors.colOnTooltip ?? "#FFFFFF"
