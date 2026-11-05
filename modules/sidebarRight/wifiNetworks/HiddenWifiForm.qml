@@ -10,8 +10,10 @@ Item {
     property string security: "wpa-psk"
     property string selectedDevice: ""
     property bool autoConnect: false
+    property bool passwordVisible: false
 
     function clearPassword() {
+        root.passwordVisible = false;
         passwordField.clear();
     }
     function clearPrivateFields() {
@@ -73,8 +75,18 @@ Item {
                         Layout.minimumWidth: 0
                         placeholderText: Translation.tr("Password")
                         enabled: !Network.wifiBusy
-                        echoMode: TextInput.Password
+                        echoMode: root.passwordVisible ? TextInput.Normal : TextInput.Password
                         inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+                        onTextChanged: if (!text.length) root.passwordVisible = false
+                    }
+                    DialogButton {
+                        objectName: "hiddenWifiPasswordVisibility"
+                        focusPolicy: Qt.TabFocus // Mouse reveal should not steal the text cursor.
+                        buttonText: root.passwordVisible ? Translation.tr("Hide") : Translation.tr("Show")
+                        Accessible.name: root.passwordVisible ? Translation.tr("Hide password") : Translation.tr("Show password")
+                        enabled: !Network.wifiBusy && passwordField.text.length > 0
+                        onEnabledChanged: if (!enabled) root.passwordVisible = false
+                        onClicked: root.passwordVisible = !root.passwordVisible
                     }
                 }
                 StyledText {

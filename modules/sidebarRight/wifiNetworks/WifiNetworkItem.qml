@@ -9,6 +9,7 @@ import QtQuick.Layouts
 DialogListItem {
     id: root
     required property WifiAccessPoint wifiNetwork
+    property bool passwordVisible: false
     readonly property bool connecting: Network.wifiConnecting && Network.wifiConnectTarget === wifiNetwork
     readonly property bool acting: Network.wifiBusy && Network.wifiActionTarget === wifiNetwork
     readonly property var savedProfiles: Network.savedWifiProfiles.filter(profile => profile.ssid === root.wifiNetwork?.ssid)
@@ -27,9 +28,10 @@ DialogListItem {
         root.wifiNetwork.forgetProfileIds = [];
     }
 
-    onVisibleChanged: if (!visible) root.cancelForget()
+    onVisibleChanged: if (!visible) { root.cancelForget(); root.passwordVisible = false; }
 
     function clearPassword() {
+        root.passwordVisible = false;
         passwordField.clear();
     }
     function submitPassword() {
@@ -172,9 +174,19 @@ DialogListItem {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     placeholderText: Translation.tr("Password")
-                    echoMode: TextInput.Password
+                    echoMode: root.passwordVisible ? TextInput.Normal : TextInput.Password
                     inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+                    onTextChanged: if (!text.length) root.passwordVisible = false
                     onAccepted: root.submitPassword()
+                }
+                DialogButton {
+                    objectName: "wifiPasswordVisibility"
+                    focusPolicy: Qt.TabFocus // Mouse reveal should not steal the text cursor.
+                    buttonText: root.passwordVisible ? Translation.tr("Hide") : Translation.tr("Show")
+                    Accessible.name: root.passwordVisible ? Translation.tr("Hide password") : Translation.tr("Show password")
+                    enabled: !Network.wifiBusy && passwordField.text.length > 0
+                    onEnabledChanged: if (!enabled) root.passwordVisible = false
+                    onClicked: root.passwordVisible = !root.passwordVisible
                 }
             }
 
