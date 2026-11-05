@@ -13,6 +13,22 @@ DialogListItem {
     readonly property bool acting: Network.wifiBusy && Network.wifiActionTarget === wifiNetwork
     readonly property var savedProfiles: Network.savedWifiProfiles.filter(profile => profile.ssid === root.wifiNetwork?.ssid)
 
+    function requestForget() {
+        if (Network.wifiBusy || !root.savedProfiles.length) return;
+        root.wifiNetwork.forgetProfileIds = root.savedProfiles.map(profile => profile.uuid);
+        root.wifiNetwork.askingPassword = false;
+        root.wifiNetwork.connectionError = "";
+        root.wifiNetwork.confirmingForget = true;
+    }
+
+    function cancelForget() {
+        if (!root.wifiNetwork) return;
+        root.wifiNetwork.confirmingForget = false;
+        root.wifiNetwork.forgetProfileIds = [];
+    }
+
+    onVisibleChanged: if (!visible) root.cancelForget()
+
     function clearPassword() {
         passwordField.clear();
     }
@@ -84,6 +100,60 @@ DialogListItem {
             wrapMode: Text.WordWrap
             color: root.connecting || root.acting ? Appearance.colors.colSubtext : Appearance.m3colors.m3error
             font.pixelSize: Appearance.font.pixelSize.small
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            visible: !root.wifiNetwork?.confirmingForget && ((root.wifiNetwork?.active ?? false) || root.savedProfiles.length > 0)
+
+            DialogButton {
+                buttonText: Translation.tr("Disconnect")
+                visible: root.wifiNetwork?.active ?? false
+                enabled: !Network.wifiBusy
+                onClicked: Network.disconnectWifiNetwork(root.wifiNetwork)
+                StyledToolTip { text: Translation.tr("Disconnect Wi-Fi but keep its saved password. Ethernet is unaffected.") }
+            }
+            DialogButton {
+                buttonText: Translation.tr("Forget")
+                visible: root.savedProfiles.length > 0
+                enabled: !Network.wifiBusy && !Network.wifiProfilesLoading
+                onClicked: root.requestForget()
+            }
+            Item { Layout.fillWidth: true }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 8
+            visible: root.wifiNetwork?.confirmingForget ?? false
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Forget this network?")
+                font.weight: Font.Medium
+            }
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Remove %1 saved Wi-Fi profile(s) and their passwords. If connected, this Wi-Fi will disconnect. Ethernet is unaffected.")
+                    .arg(root.wifiNetwork?.forgetProfileIds.length ?? 0)
+                wrapMode: Text.WordWrap
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.small
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                DialogButton {
+                    buttonText: Translation.tr("Cancel")
+                    onClicked: root.cancelForget()
+                }
+                DialogButton {
+                    buttonText: Translation.tr("Forget network")
+                    colEnabled: Appearance.m3colors.m3error
+                    enabled: !Network.wifiBusy
+                    onClicked: Network.forgetWifiNetwork(root.wifiNetwork)
+                }
+            }
         }
 
         ColumnLayout { // Password
